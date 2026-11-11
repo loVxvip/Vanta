@@ -20,20 +20,38 @@ jobs:
         with:
           distribution: temurin
           java-version: '17'
+          cache: gradle
 
-      - name: Распаковка проекта
+      - name: Поиск ZIP-архива
         run: |
+          ZIP_FILE=$(find . -maxdepth 2 -type f -iname "*.zip" | head -n 1)
+
+          if [ -z "$ZIP_FILE" ]; then
+            echo "ОШИБКА: ZIP-архив не найден"
+            exit 1
+          fi
+
+          echo "Найден архив: $ZIP_FILE"
           mkdir -p project
-          unzip -q VANTA-VISUALS-RU.zip -d project
+          unzip -q "$ZIP_FILE" -d project
+
+      - name: Поиск Gradle Wrapper
+        run: |
+          WRAPPER=$(find project -type f -name gradlew -print -quit)
+
+          if [ -z "$WRAPPER" ]; then
+            echo "ОШИБКА: файл gradlew не найден."
+            echo "Проверь, что ZIP содержит Android-проект."
+            find project -maxdepth 4 -type f | head -n 100
+            exit 1
+          fi
+
+          echo "Найден Gradle Wrapper: $WRAPPER"
+          echo "PROJECT_DIR=$(dirname "$WRAPPER")" >> "$GITHUB_ENV"
 
       - name: Сборка APK
         run: |
-          WRAPPER=$(find project -type f -name gradlew -print -quit)
-          if [ -z "$WRAPPER" ]; then
-            echo "Не найден Gradle Wrapper"
-            exit 1
-          fi
-          cd "$(dirname "$WRAPPER")"
+          cd "$PROJECT_DIR"
           chmod +x gradlew
           ./gradlew assembleDebug
 
