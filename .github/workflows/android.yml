@@ -12,50 +12,44 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Получение проекта
+      - name: Получить репозиторий
         uses: actions/checkout@v4
 
-      - name: Установка Java
-        uses: actions/setup-java@v4
+      - name: Установить Java 17
+        uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: '17'
-          cache: gradle
 
-      - name: Поиск ZIP-архива
+      - name: Установить Gradle 8.9
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.9'
+          cache-disabled: true
+
+      - name: Распаковать архив
         run: |
-          ZIP_FILE=$(find . -maxdepth 2 -type f -iname "*.zip" | head -n 1)
-
-          if [ -z "$ZIP_FILE" ]; then
-            echo "ОШИБКА: ZIP-архив не найден"
-            exit 1
-          fi
-
-          echo "Найден архив: $ZIP_FILE"
           mkdir -p project
-          unzip -q "$ZIP_FILE" -d project
+          unzip -q VANTA-VISUALS-RU.zip -d project
 
-      - name: Поиск Gradle Wrapper
+      - name: Найти Android-проект
         run: |
-          WRAPPER=$(find project -type f -name gradlew -print -quit)
+          SETTINGS=$(find project -type f -name settings.gradle.kts -print -quit)
 
-          if [ -z "$WRAPPER" ]; then
-            echo "ОШИБКА: файл gradlew не найден."
-            echo "Проверь, что ZIP содержит Android-проект."
-            find project -maxdepth 4 -type f | head -n 100
+          if [ -z "$SETTINGS" ]; then
+            echo "Не найден settings.gradle.kts"
+            find project -maxdepth 5 -type f
             exit 1
           fi
 
-          echo "Найден Gradle Wrapper: $WRAPPER"
-          echo "PROJECT_DIR=$(dirname "$WRAPPER")" >> "$GITHUB_ENV"
+          PROJECT_DIR=$(dirname "$SETTINGS")
+          echo "PROJECT_DIR=$PROJECT_DIR" >> "$GITHUB_ENV"
 
-      - name: Сборка APK
+      - name: Собрать APK
         run: |
-          cd "$PROJECT_DIR"
-          chmod +x gradlew
-          ./gradlew assembleDebug
+          gradle -p "$PROJECT_DIR" assembleDebug
 
-      - name: Сохранение APK
+      - name: Загрузить APK
         uses: actions/upload-artifact@v4
         with:
           name: VANTA-VISUALS-APK
