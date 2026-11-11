@@ -21,7 +21,7 @@ jobs:
           distribution: temurin
           java-version: '17'
 
-      - name: Установить Gradle 8.9
+      - name: Установить Gradle
         uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: '8.9'
@@ -32,18 +32,37 @@ jobs:
           mkdir -p project
           unzip -q VANTA-VISUALS-RU.zip -d project
 
-      - name: Найти Android-проект
+      - name: Найти проект
         run: |
           SETTINGS=$(find project -type f -name settings.gradle.kts -print -quit)
-
           if [ -z "$SETTINGS" ]; then
-            echo "Не найден settings.gradle.kts"
-            find project -maxdepth 5 -type f
+            echo "Проект не найден"
+            exit 1
+          fi
+          PROJECT_DIR=$(dirname "$SETTINGS")
+          echo "PROJECT_DIR=$PROJECT_DIR" >> "$GITHUB_ENV"
+
+      - name: Исправить совместимость Java и Kotlin
+        run: |
+          APP_GRADLE=$(find project -type f -path '*/app/build.gradle.kts' -print -quit)
+
+          if [ -z "$APP_GRADLE" ]; then
+            echo "Не найден app/build.gradle.kts"
             exit 1
           fi
 
-          PROJECT_DIR=$(dirname "$SETTINGS")
-          echo "PROJECT_DIR=$PROJECT_DIR" >> "$GITHUB_ENV"
+          cat >> "$APP_GRADLE" <<'EOF'
+
+          android {
+              compileOptions {
+                  sourceCompatibility = JavaVersion.VERSION_17
+                  targetCompatibility = JavaVersion.VERSION_17
+              }
+              kotlinOptions {
+                  jvmTarget = "17"
+              }
+          }
+          EOF
 
       - name: Собрать APK
         run: |
