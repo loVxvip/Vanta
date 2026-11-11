@@ -1,0 +1,45 @@
+
+name: Сборка VANTA VISUALS APK
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Получение проекта
+        uses: actions/checkout@v4
+
+      - name: Установка Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Распаковка проекта
+        run: |
+          mkdir -p project
+          unzip -q VANTA-VISUALS-RU.zip -d project
+
+      - name: Сборка APK
+        run: |
+          WRAPPER=$(find project -type f -name gradlew -print -quit)
+          if [ -z "$WRAPPER" ]; then
+            echo "Не найден Gradle Wrapper"
+            exit 1
+          fi
+          cd "$(dirname "$WRAPPER")"
+          chmod +x gradlew
+          ./gradlew assembleDebug
+
+      - name: Сохранение APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: VANTA-VISUALS-APK
+          path: project/**/build/outputs/apk/debug/*.apk
+          if-no-files-found: error
